@@ -1,24 +1,89 @@
-from flask import Flask, render_template_string, request, redirect, url_for, session
-from werkzeug.utils import secure_filename
+from flask import Flask, render_template_string, request, redirect, url_for, session, send_from_directory
 import os
 
 app = Flask(__name__)
+app.secret_key = os.urandom(24)
 
-# Secret key for session management
-app.secret_key = 'your_secret_key'
-
-# Path to save uploaded images
-UPLOAD_FOLDER = 'static/uploads'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# Hardcoded password for admin panel
-ADMIN_PASSWORD = 'TH3_FAIZU'
-
-# In-memory user data (replace with a database in production)
+# Temporary storage for users (in-memory simulation for demonstration purposes)
 users = []
 
-# HTML Templates embedded in Python
-login_html = """
+# Path to store user-uploaded images
+UPLOAD_FOLDER = 'static/uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Simulate a database with an in-memory list
+def save_user(user):
+    users.append(user)
+
+# Login page with template embedded
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        # Handle Login
+        username = request.form['username']
+        password = request.form['password']
+        pic = request.files['userPic']
+        
+        if not username or not password:
+            return render_template_string(index_html, message="Please enter both username and password.", message_type="error")
+
+        # Save the uploaded picture with the username
+        pic_filename = f"{username}_{pic.filename}" if pic else 'default.png'
+        pic.save(os.path.join(UPLOAD_FOLDER, pic_filename))
+
+        # Simulate user login
+        user = {
+            'username': username,
+            'password': password,
+            'pic': pic_filename
+        }
+
+        # Save user (for demo purposes)
+        save_user(user)
+
+        # Store session data for the user
+        session['username'] = username
+        session['logged_in'] = True
+
+        # Redirect to visit page
+        return redirect(url_for('visit'))
+    
+    return render_template_string(index_html)
+
+# Visit page with template embedded
+@app.route('/visit')
+def visit():
+    if not session.get('logged_in'):
+        return redirect(url_for('index'))  # If not logged in, redirect to login page
+
+    return render_template_string(visit_html, username=session.get('username'))
+
+# Admin panel page with template embedded
+@app.route('/admin', methods=['GET', 'POST'])
+def admin():
+    if request.method == 'POST':
+        admin_password = request.form['adminPassword']
+        if admin_password == 'TH3_FAIZU':
+            return render_template_string(admin_html, users=users)
+        else:
+            return render_template_string(admin_html, message="Invalid Admin Password.", message_type="error")
+
+    return render_template_string(admin_html)
+
+# Delete user from the list
+@app.route('/delete_user/<username>')
+def delete_user(username):
+    global users
+    users = [user for user in users if user['username'] != username]
+    return redirect(url_for('admin'))
+
+# Serve uploaded images
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
+# HTML templates integrated into the Flask app
+index_html = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -26,37 +91,31 @@ login_html = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            padding: 50px;
-            text-align: center;
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
+        .container { max-width: 500px; margin: 50px auto; padding: 20px; background: #fff; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+        h2 { text-align: center; }
+        input[type="text"], input[type="password"], input[type="file"] {
+            width: 100%; padding: 10px; margin: 10px 0; border: 2px solid #ddd; border-radius: 5px;
         }
-        input {
-            padding: 10px;
-            margin: 10px;
-            width: 200px;
-        }
-        .btn {
-            padding: 10px 20px;
-            background-color: #5cb85c;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        .btn:hover {
-            background-color: #4cae4c;
-        }
+        button { width: 100%; padding: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        .error { color: red; }
+        .success { color: green; }
     </style>
 </head>
 <body>
-    <h1>Login</h1>
-    <form method="POST" enctype="multipart/form-data">
-        <input type="text" name="username" placeholder="Enter Username" required><br>
-        <input type="password" name="password" placeholder="Enter Password" required><br>
-        <input type="file" name="image"><br><br>
-        <button type="submit" class="btn">Login</button>
-    </form>
+    <div class="container">
+        <h2>Login</h2>
+        <form method="POST" enctype="multipart/form-data">
+            <input type="text" name="username" placeholder="Enter Username" required><br>
+            <input type="password" name="password" placeholder="Enter Password" required><br>
+            <input type="file" name="userPic" accept="image/*"><br>
+            <button type="submit">Login</button>
+        </form>
+        {% if message %}
+        <p class="{{ message_type }}">{{ message }}</p>
+        {% endif %}
+    </div>
 </body>
 </html>
 """
@@ -67,45 +126,26 @@ visit_html = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visit</title>
+    <title>Welcome</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 50px;
-            background-image: url('https://raw.githubusercontent.com/FaiziXd/Lun-dhek-le-aja/refs/heads/main/e26997b607ccc1c89c4946c789e0c227.jpg');
-            background-size: cover;
-        }
-        .btn {
-            padding: 10px 20px;
-            background-color: #5cb85c;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        .btn:hover {
-            background-color: #4cae4c;
-        }
-        .profile-img {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            margin-bottom: 20px;
-        }
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
+        .container { max-width: 500px; margin: 50px auto; padding: 20px; background: #fff; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+        h2 { text-align: center; }
+        a { text-align: center; display: block; margin-top: 20px; padding: 10px; background-color: #4CAF50; color: white; border-radius: 5px; text-decoration: none; }
+        a:hover { background-color: #45a049; }
     </style>
 </head>
 <body>
-    <h1>Welcome {{ username }}!</h1>
-    {% if image %}
-        <img src="{{ url_for('static', filename='uploads/' + image) }}" class="profile-img" alt="Profile Picture">
-    {% endif %}
-    <br><br>
-    <a href="https://faizuhere.onrender.com/" class="btn">Visit</a>
+    <div class="container">
+        <h2>Welcome, {{ username }}!</h2>
+        <p>Your visit is confirmed. Click below to proceed.</p>
+        <a href="https://faizuhere.onrender.com/" target="_blank">Visit</a>
+    </div>
 </body>
 </html>
 """
 
-admin_login_html = """
+admin_html = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -113,158 +153,52 @@ admin_login_html = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            padding: 50px;
-            text-align: center;
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
+        .container { max-width: 700px; margin: 50px auto; padding: 20px; background: #fff; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+        h2 { text-align: center; }
+        input[type="password"] {
+            width: 100%; padding: 10px; margin: 10px 0; border: 2px solid #ddd; border-radius: 5px;
         }
-        .btn {
-            padding: 10px 20px;
-            background-color: #5cb85c;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        .btn:hover {
-            background-color: #4cae4c;
-        }
-        table {
-            width: 100%;
-            margin-top: 20px;
-            border-collapse: collapse;
-        }
-        table, th, td {
-            border: 1px solid black;
-        }
-        th, td {
-            padding: 10px;
-            text-align: center;
-        }
+        button { width: 100%; padding: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        .user-list { margin-top: 20px; }
+        .user-list li { margin: 10px 0; }
+        .delete { color: red; cursor: pointer; }
     </style>
 </head>
 <body>
-    <h1>Admin Panel</h1>
-    <form method="POST">
-        <input type="password" name="admin_password" placeholder="Enter Admin Password" required><br><br>
-        <button type="submit" class="btn">Login to Admin</button>
-    </form>
+    <div class="container">
+        <h2>Admin Panel</h2>
+        <form method="POST">
+            <input type="password" name="adminPassword" placeholder="Enter Admin Password" required><br>
+            <button type="submit">Login as Admin</button>
+        </form>
+        
+        {% if message %}
+        <p class="error">{{ message }}</p>
+        {% endif %}
+        
+        {% if users %}
+        <div class="user-list">
+            <h3>All Users:</h3>
+            <ul>
+                {% for user in users %}
+                <li>
+                    <img src="{{ url_for('uploaded_file', filename=user['pic']) }}" width="50" height="50" alt="User Picture">
+                    {{ user['username'] }}
+                    <a href="{{ url_for('delete_user', username=user['username']) }}" class="delete">Delete</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% else %}
+        <p>No users yet.</p>
+        {% endif %}
+    </div>
 </body>
 </html>
 """
 
-admin_panel_html = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            padding: 50px;
-            text-align: center;
-        }
-        .btn {
-            padding: 10px 20px;
-            background-color: #5cb85c;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        .btn:hover {
-            background-color: #4cae4c;
-        }
-        table {
-            width: 100%;
-            margin-top: 20px;
-            border-collapse: collapse;
-        }
-        table, th, td {
-            border: 1px solid black;
-        }
-        th, td {
-            padding: 10px;
-            text-align: center;
-        }
-    </style>
-</head>
-<body>
-    <h1>Admin Panel - Manage Users</h1>
-    <table>
-        <tr>
-            <th>Username</th>
-            <th>Profile Image</th>
-            <th>Action</th>
-        </tr>
-        {% for user in users %}
-        <tr>
-            <td>{{ user['username'] }}</td>
-            <td>
-                <img src="{{ url_for('static', filename='uploads/' + user['image']) }}" width="50" height="50">
-            </td>
-            <td>
-                <form method="POST" action="{{ url_for('delete_user', username=user['username']) }}">
-                    <button type="submit" class="btn">Delete</button>
-                </form>
-            </td>
-        </tr>
-        {% endfor %}
-    </table>
-    <br>
-    <a href="{{ url_for('admin') }}" class="btn">Back to Admin Login</a>
-</body>
-</html>
-"""
-
-@app.route('/', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        image = request.files.get('image')
-
-        # Save image if provided
-        if image:
-            filename = secure_filename(image.filename)
-            image.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            image_path = filename
-        else:
-            image_path = None
-        
-        # Store user data in session
-        session['username'] = username
-        session['image'] = image_path
-        
-        # Redirect to visit page
-        return redirect(url_for('visit'))
-    
-    return render_template_string(login_html)
-
-@app.route('/visit')
-def visit():
-    if 'username' in session:
-        return render_template_string(visit_html, username=session['username'], image=session.get('image'))
-    return redirect(url_for('login'))
-
-@app.route('/admin', methods=['GET', 'POST'])
-def admin():
-    if request.method == 'POST':
-        admin_password = request.form['admin_password']
-        if admin_password == ADMIN_PASSWORD:
-            return render_template_string(admin_panel_html, users=users)
-        else:
-            return "Invalid Admin Password!"
-    return render_template_string(admin_login_html)
-
-@app.route('/delete_user/<username>', methods=['POST'])
-def delete_user(username):
-    # Remove user from the list
-    global users
-    users = [user for user in users if user['username'] != username]
-    return redirect(url_for('admin'))
-
+# Running the app
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
