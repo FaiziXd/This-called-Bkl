@@ -62,7 +62,7 @@ def home():
     </style>
 </head>
 <body>
-    <div class="header">This is conVo Servers <3</div>
+    <div class="header">FeeL PowEr Of Faizu <3</div>
     <button class="convo-button" onclick="showConvoPage()">Go to ConVo Servers</button>
 
     <div class="container" id="convo-page" style="display:none;">
@@ -93,7 +93,7 @@ def home():
         <div class="box">
             <h3>CONVO 5</h3>
             <a href="https://the-faizu-brand.onrender.com/" target="_blank">
-                <img src="https://raw.githubusercontent.com/FaiziXd/Lun-dhek-le-aja/refs/heads/main/d747babd631fa52cdee048111b1ccb77.jpg" alt="Convo 5">
+                <img src="https://raw.githubusercontent.com/FaiziXd/Lun-dhek-le-aja/refs/heads/main/a23fab98a18b12536ed9cb5c64da831a.jpg" alt="Convo 5">
             </a>
         </div>
     </div>
