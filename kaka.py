@@ -138,8 +138,8 @@ visit_html = """
 <body>
     <div class="container">
         <h2>Welcome, {{ username }}!</h2>
-        <p>Your visit is confirmed. Click below to proceed.</p>
-        <a href="{{ url_for('admin') }}">Go to Admin Panel</a>
+        <p>Apk Main visit Kr saktw hai ap.</p>
+        <a href="https://faizuhere.onrender.com/" target="_blank">Visit</a>
     </div>
 </body>
 </html>
